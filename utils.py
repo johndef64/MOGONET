@@ -47,8 +47,7 @@ def cal_adj_mat_parameter(edge_per_node, data, metric="cosine"):
     assert metric == "cosine", "Only cosine distance implemented"
     dist = cosine_distance_torch(data, data)
     parameter = torch.sort(dist.reshape(-1,)).values[edge_per_node*data.shape[0]]
-    return np.asscalar(parameter.data.cpu().numpy())
-
+    return parameter.data.cpu().numpy().item() #np.asscalar(parameter.data.cpu().numpy()) #asscalar
 
 def graph_from_dist_tensor(dist, parameter, self_dist=True):
     if self_dist:
@@ -57,7 +56,7 @@ def graph_from_dist_tensor(dist, parameter, self_dist=True):
     if self_dist:
         diag_idx = np.diag_indices(g.shape[0])
         g[diag_idx[0], diag_idx[1]] = 0
-        
+
     return g
 
 
@@ -69,7 +68,7 @@ def gen_adj_mat_tensor(data, parameter, metric="cosine"):
         adj = 1-dist
     else:
         raise NotImplementedError
-    adj = adj*g 
+    adj = adj*g
     adj_T = adj.transpose(0,1)
     I = torch.eye(adj.shape[0])
     if cuda:
@@ -77,7 +76,7 @@ def gen_adj_mat_tensor(data, parameter, metric="cosine"):
     adj = adj + adj_T*(adj_T > adj).float() - adj*(adj_T > adj).float()
     adj = F.normalize(adj + I, p=1)
     adj = to_sparse(adj)
-    
+
     return adj
 
 
@@ -87,7 +86,7 @@ def gen_test_adj_mat_tensor(data, trte_idx, parameter, metric="cosine"):
     if cuda:
         adj = adj.cuda()
     num_tr = len(trte_idx["tr"])
-    
+
     dist_tr2te = cosine_distance_torch(data[trte_idx["tr"]], data[trte_idx["te"]])
     g_tr2te = graph_from_dist_tensor(dist_tr2te, parameter, self_dist=False)
     if metric == "cosine":
@@ -95,7 +94,7 @@ def gen_test_adj_mat_tensor(data, trte_idx, parameter, metric="cosine"):
     else:
         raise NotImplementedError
     adj[:num_tr,num_tr:] = adj[:num_tr,num_tr:]*g_tr2te
-    
+
     dist_te2tr = cosine_distance_torch(data[trte_idx["te"]], data[trte_idx["tr"]])
     g_te2tr = graph_from_dist_tensor(dist_te2tr, parameter, self_dist=False)
     if metric == "cosine":
@@ -103,7 +102,7 @@ def gen_test_adj_mat_tensor(data, trte_idx, parameter, metric="cosine"):
     else:
         raise NotImplementedError
     adj[num_tr:,:num_tr] = adj[num_tr:,:num_tr]*g_te2tr # retain selected edges
-    
+
     adj_T = adj.transpose(0,1)
     I = torch.eye(adj.shape[0])
     if cuda:
@@ -111,7 +110,7 @@ def gen_test_adj_mat_tensor(data, trte_idx, parameter, metric="cosine"):
     adj = adj + adj_T*(adj_T > adj).float() - adj*(adj_T > adj).float()
     adj = F.normalize(adj + I, p=1)
     adj = to_sparse(adj)
-    
+
     return adj
 
 
@@ -120,8 +119,8 @@ def save_model_dict(folder, model_dict):
         os.makedirs(folder)
     for module in model_dict:
         torch.save(model_dict[module].state_dict(), os.path.join(folder, module+".pth"))
-            
-    
+
+
 def load_model_dict(folder, model_dict):
     for module in model_dict:
         if os.path.exists(os.path.join(folder, module+".pth")):
@@ -130,5 +129,5 @@ def load_model_dict(folder, model_dict):
         else:
             print("WARNING: Module {:} from model_dict is not loaded!".format(module))
         if cuda:
-            model_dict[module].cuda()    
+            model_dict[module].cuda()
     return model_dict

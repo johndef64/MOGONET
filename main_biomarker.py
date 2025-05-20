@@ -1,3 +1,4 @@
+#%%
 """ Example for biomarker identification
 """
 import os
@@ -18,40 +19,18 @@ if __name__ == "__main__":
         featimp_list = cal_feat_imp(data_folder, os.path.join(model_folder, str(rep+1)), 
                                     view_list, num_class)
         featimp_list_list.append(copy.deepcopy(featimp_list))
+        print('Rep {:} done'.format(rep+1))
 
 
     summarize_imp_feat(featimp_list_list)
     
 
+
+
 #%%
 import numpy as np
 import pandas as pd
-
-def summarize_imp_feat(featimp_list_list, topn=30):
-    num_rep = len(featimp_list_list)
-    num_view = len(featimp_list_list[0])
-    df_tmp_list = []
-    for v in range(num_view):
-        df_tmp = copy.deepcopy(featimp_list_list[0][v])
-        df_tmp['omics'] = np.ones(df_tmp.shape[0], dtype=int)*v
-        df_tmp_list.append(df_tmp.copy(deep=True))
-    df_featimp = pd.concat(df_tmp_list).copy(deep=True)
-    
-    for r in range(1,num_rep):
-        for v in range(num_view):
-            df_tmp = copy.deepcopy(featimp_list_list[r][v])
-            df_tmp['omics'] = np.ones(df_tmp.shape[0], dtype=int)*v
-            #df_featimp = df_featimp.append(df_tmp.copy(deep=True), ignore_index=True)
-            df_featimp = pd.concat([df_featimp, df_tmp.copy(deep=True)], ignore_index=True)
-    
-    df_featimp_top = df_featimp.groupby(['feat_name', 'omics'])['imp'].sum()
-    df_featimp_top = df_featimp_top.reset_index()
-    df_featimp_top = df_featimp_top.sort_values(by='imp',ascending=False)
-    df_featimp_top = df_featimp_top.iloc[:topn]
-    print('{:}\t{:}'.format('Rank','Feature name'))
-    for i in range(len(df_featimp_top)):
-        print('{:}\t{:}'.format(i+1,df_featimp_top.iloc[i]['feat_name']))
-    return df_featimp_top
+from feat_importance import summarize_imp_feat
 
 df_featimp_top=summarize_imp_feat(featimp_list_list)
 df_featimp_top.to_csv(f'{data_folder}_feat_importance.csv', index=False)

@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 import torch
 import torch.nn.functional as F
 from models import init_model_dict, init_optim
-from utils import one_hot_tensor, cal_sample_weight, gen_adj_mat_tensor, gen_test_adj_mat_tensor, cal_adj_mat_parameter
+from utils import one_hot_tensor, cal_sample_weight, gen_adj_mat_tensor, gen_test_adj_mat_tensor, cal_adj_mat_parameter, save_model_dict
 
 cuda = True if torch.cuda.is_available() else False
 
@@ -116,11 +116,13 @@ def train_test(data_folder, view_list, num_class,
     if data_folder == 'BRCA':
         adj_parameter = 10
         dim_he_list = [400,400,200]
+
     data_tr_list, data_trte_list, trte_idx, labels_trte = prepare_trte_data(data_folder, view_list)
     labels_tr_tensor = torch.LongTensor(labels_trte[trte_idx["tr"]])
     onehot_labels_tr_tensor = one_hot_tensor(labels_tr_tensor, num_class)
     sample_weight_tr = cal_sample_weight(labels_trte[trte_idx["tr"]], num_class)
     sample_weight_tr = torch.FloatTensor(sample_weight_tr)
+    
     if cuda:
         labels_tr_tensor = labels_tr_tensor.cuda()
         onehot_labels_tr_tensor = onehot_labels_tr_tensor.cuda()
@@ -128,6 +130,7 @@ def train_test(data_folder, view_list, num_class,
     adj_tr_list, adj_te_list = gen_trte_adj_mat(data_tr_list, data_trte_list, trte_idx, adj_parameter)
     dim_list = [x.shape[1] for x in data_tr_list]
     model_dict = init_model_dict(num_view, num_class, dim_list, dim_he_list, dim_hvcdn)
+
     for m in model_dict:
         if cuda:
             model_dict[m].cuda()
@@ -136,7 +139,8 @@ def train_test(data_folder, view_list, num_class,
     optim_dict = init_optim(num_view, model_dict, lr_e_pretrain, lr_c)
     for epoch in range(num_epoch_pretrain):
         train_epoch(data_tr_list, adj_tr_list, labels_tr_tensor, 
-                    onehot_labels_tr_tensor, sample_weight_tr, model_dict, optim_dict, train_VCDN=False)
+                    onehot_labels_tr_tensor, sample_weight_tr,
+                    model_dict, optim_dict, train_VCDN=False)
     print("\nTraining...")
     optim_dict = init_optim(num_view, model_dict, lr_e, lr_c)
     for epoch in range(num_epoch+1):
@@ -154,3 +158,12 @@ def train_test(data_folder, view_list, num_class,
                 print("Test F1 weighted: {:.3f}".format(f1_score(labels_trte[trte_idx["te"]], te_prob.argmax(1), average='weighted')))
                 print("Test F1 macro: {:.3f}".format(f1_score(labels_trte[trte_idx["te"]], te_prob.argmax(1), average='macro')))
             print()
+
+    ## insertion to save Models ##########################
+    print("\nSaving models...")
+    models_path = os.path.join(data_folder, "models")
+    folders = [int(name) for name in os.listdir(models_path) if os.path.isdir(os.path.join(models_path, name)) and name.isdigit()]
+    next_number = max(folders) + 1 if folders else 1
+    save_model_dict(os.path.join(data_folder, f"models/{next_number}"), model_dict)
+    print("Model saved at `{}`".format(os.path.join(data_folder, "models")))
+    ## insertion to save Models  ##########################

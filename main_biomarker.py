@@ -28,12 +28,10 @@ if __name__ == "__main__":
 
 
 #%%
-import numpy as np
-import pandas as pd
-from feat_importance import summarize_imp_feat
+#%%
 
 df_featimp_top=summarize_imp_feat(featimp_list_list)
-df_featimp_top.to_csv(f'{data_folder}_feat_importance.csv', index=False)
+df_featimp_top.to_csv(f'{data_folder}_feat_importance_2models.csv', index=False)
 
 # Rank	Feature name
 # 1	SOX11|6664
